@@ -3,7 +3,7 @@ import axios from 'axios';
 import { FiSend, FiBookOpen, FiPlay, FiHelpCircle, FiFileText, FiLoader, FiDownload } from 'react-icons/fi';
 import './App.css';
 
-const API_BASE_URL = 'http://localhost:3001';
+const API_BASE_URL = 'https://bytementor.onrender.com';
 
 function App() {
   const [keyword, setKeyword] = useState('');
