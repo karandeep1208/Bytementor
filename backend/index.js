@@ -1,4 +1,4 @@
-// server.js
+// index.js
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
@@ -15,6 +15,11 @@ app.use(express.json());
 // Environment validation
 if (!process.env.GEMINI_API_KEY) console.warn('⚠️ Warning: GEMINI_API_KEY not found');
 if (!process.env.YOUTUBE_API_KEY) console.warn('⚠️ Warning: YOUTUBE_API_KEY not found');
+
+// Root route
+app.get('/', (req, res) => {
+  res.send('<h1>🚀 Welcome to ByteMentor API!</h1><p>Use /api/generate-course to generate courses.</p>');
+});
 
 // Health check
 app.get('/health', (req, res) => {
@@ -50,7 +55,7 @@ app.post('/api/generate-course', async (req, res) => {
   }
 });
 
-// Endpoint to generate a PDF from provided text (used by frontend fallback)
+// Endpoint to generate a PDF from provided text
 app.post('/api/generate-pdf', async (req, res) => {
   try {
     const { text, filename } = req.body || {};
@@ -66,7 +71,6 @@ app.post('/api/generate-pdf', async (req, res) => {
 });
 
 // --- Gemini Helpers ---
-
 async function generateQuiz(keyword) {
   if (!process.env.GEMINI_API_KEY) return buildFallbackQuiz(keyword);
 
@@ -87,8 +91,6 @@ Return ONLY JSON:
 
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
-    console.log('🔹 Sending request to Gemini API for quiz:', keyword);
-
     const { data } = await axios.post(
       url,
       { contents: [{ parts: [{ text: prompt }] }], generationConfig: { response_mime_type: 'application/json', temperature: 0.7 } },
@@ -111,64 +113,13 @@ async function generateSummary(keyword) {
 
   const prompt = `
 Create a plain text study guide for "${keyword}". Do not use any markdown, special characters, or formatting symbols.
-Format your response exactly like this example:
-
-${keyword.toUpperCase()} STUDY GUIDE
-
-WHAT IS ${keyword.toUpperCase()}?
-A brief plain text description without any special formatting.
-
-CORE CONCEPTS
-1. Basic concept one explained in plain text
-2. Basic concept two explained in plain text
-3. Basic concept three explained in plain text
-
-MAIN COMPONENTS
-1. First component description
-2. Second component description
-3. Third component description
-
-SYNTAX AND USAGE
-1. Basic syntax example
-2. Common usage pattern
-3. Standard implementation
-
-BEST PRACTICES
-1. First best practice explained simply
-2. Second best practice explained simply
-3. Third best practice explained simply
-
-CODE EXAMPLE
-[Simple code example without any special formatting]
-
-COMMON MISTAKES
-1. First mistake and solution
-2. Second mistake and solution
-3. Third mistake and solution
-
-LEARNING RESOURCES
-1. First resource
-2. Second resource
-3. Third resource
-
-Use only numbers for lists. No asterisks, no markdown, no special characters.`;
+Use only numbers for lists.`;
 
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
-    console.log('🔹 Sending request to Gemini API for study guide:', keyword);
-
     const { data } = await axios.post(
       url,
-      { 
-        contents: [{ parts: [{ text: prompt }] }], 
-        generationConfig: { 
-          response_mime_type: 'text/plain',
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.8,
-          maxOutputTokens: 2048,
-        } 
-      },
+      { contents: [{ parts: [{ text: prompt }] }], generationConfig: { response_mime_type: 'text/plain', temperature: 0.7, topK: 40, topP: 0.8, maxOutputTokens: 2048 } },
       { timeout: 30000 }
     );
 
@@ -178,106 +129,20 @@ Use only numbers for lists. No asterisks, no markdown, no special characters.`;
         const filename = `${keyword.replace(/\s+/g, '_')}_study_guide.pdf`;
         const pdfBase64 = await createPdfFromText(raw, filename);
         return { cheatSheet: raw, cheatSheetPdf: { filename, data: pdfBase64 } };
-      } catch (pdfErr) {
-        console.error('❌ PDF generation error:', pdfErr.message || pdfErr);
+      } catch {
         return { cheatSheet: raw };
       }
     }
-
     return buildFallbackSummary(keyword);
-  } catch (err) {
-    console.error('❌ Gemini summary error:', err.message);
+  } catch {
     return buildFallbackSummary(keyword);
   }
 }
 
-function formatSummary(keyword) {
-  return `${keyword.toUpperCase()} QUICK REFERENCE GUIDE
-
-INTRODUCTION
-A comprehensive overview of ${keyword} and its core features.
-
-KEY CONCEPTS
-1. Definition and Fundamentals
-   What ${keyword} is and its main purpose
-   Core features and capabilities
-   Basic architecture and design
-
-2. Main Components
-   Essential building blocks
-   Key libraries and tools
-   Standard implementations
-
-3. Working Principles
-   How ${keyword} operates
-   Basic workflows
-   Common patterns
-
-SYNTAX AND USAGE
-1. Basic Syntax
-   Standard format and structure
-   Common commands and operations
-   Basic examples
-
-2. Advanced Features
-   Extended capabilities
-   Complex operations
-   Performance considerations
-
-BEST PRACTICES
-1. Code Organization
-   Structure your code properly
-   Follow naming conventions
-   Maintain clean architecture
-
-2. Performance Tips
-   Optimize your code
-   Handle resources efficiently
-   Avoid common bottlenecks
-
-3. Security Considerations
-   Protect your applications
-   Handle sensitive data
-   Implement proper validation
-
-CODE EXAMPLES
-
-Basic Implementation:
-[Code example showing basic usage]
-
-Advanced Pattern:
-[Code example demonstrating complex feature]
-
-COMMON MISTAKES TO AVOID
-1. Poor error handling
-   Always implement proper error checking
-   Use try-catch blocks where appropriate
-
-2. Memory management issues
-   Clean up resources properly
-   Use appropriate data structures
-
-3. Security vulnerabilities
-   Validate all inputs
-   Protect sensitive information
-
-LEARNING RESOURCES
-1. Official Documentation
-2. Community Forums
-3. Practice Platforms
-4. Tutorial Websites
-5. Code Examples
-6. Reference Books`;
-}
-
-// Bonus learning tip
 async function generateBonusTip(keyword) {
   if (!process.env.GEMINI_API_KEY) return `💡 Tip: Consistently practice ${keyword} concepts with hands-on exercises.`;
 
-  const prompt = `
-Give a short, actionable bonus learning tip for mastering "${keyword}".
-Format: one clear sentence.
-`;
+  const prompt = `Give a short, actionable bonus learning tip for mastering "${keyword}". Format: one clear sentence.`;
 
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
@@ -289,16 +154,13 @@ Format: one clear sentence.
 
     const tip = (data?.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('').trim();
     return tip || `💡 Tip: Consistently practice ${keyword} concepts with hands-on exercises.`;
-  } catch (err) {
-    console.error('❌ Gemini bonus tip error:', err.message);
+  } catch {
     return `💡 Tip: Consistently practice ${keyword} concepts with hands-on exercises.`;
   }
 }
 
-// --- YouTube Helper ---
 async function fetchYouTubeVideos(keyword) {
   if (!process.env.YOUTUBE_API_KEY) return [];
-
   try {
     const res = await axios.get('https://www.googleapis.com/youtube/v3/search', {
       params: { part: 'snippet', q: `${keyword} tutorial`, type: 'video', maxResults: 5, key: process.env.YOUTUBE_API_KEY },
@@ -309,8 +171,7 @@ async function fetchYouTubeVideos(keyword) {
       thumbnail: item.snippet.thumbnails.medium.url,
       channel: item.snippet.channelTitle,
     }));
-  } catch (err) {
-    console.error('❌ YouTube fetch error:', err.message);
+  } catch {
     return [];
   }
 }
@@ -318,95 +179,13 @@ async function fetchYouTubeVideos(keyword) {
 // --- Fallbacks ---
 async function buildFallbackSummary(keyword) {
   const cheatSheet = formatSummary(keyword);
-  
   try {
     const filename = `${keyword.replace(/\s+/g, '_')}_guide.pdf`;
     const pdfBase64 = await createPdfFromText(cheatSheet, filename);
     return { cheatSheet, cheatSheetPdf: { filename, data: pdfBase64 } };
-  } catch (e) {
-    console.error('❌ Fallback PDF generation error:', e.message || e);
+  } catch {
     return { cheatSheet };
   }
-}
-
-// Helper function to format the summary content
-function formatSummary(keyword) {
-  return `${keyword.toUpperCase()} QUICK REFERENCE GUIDE
-
-INTRODUCTION
-A comprehensive overview of ${keyword} and its core features.
-
-KEY CONCEPTS
-1. Definition and Fundamentals
-   What ${keyword} is and its main purpose
-   Core features and capabilities
-   Basic architecture and design
-
-2. Main Components
-   Essential building blocks
-   Key libraries and tools
-   Standard implementations
-
-3. Working Principles
-   How ${keyword} operates
-   Basic workflows
-   Common patterns
-
-SYNTAX AND USAGE
-1. Basic Syntax
-   Standard format and structure
-   Common commands and operations
-   Basic examples
-
-2. Advanced Features
-   Extended capabilities
-   Complex operations
-   Performance considerations
-
-BEST PRACTICES
-1. Code Organization
-   Structure your code properly
-   Follow naming conventions
-   Maintain clean architecture
-
-2. Performance Tips
-   Optimize your code
-   Handle resources efficiently
-   Avoid common bottlenecks
-
-3. Security Considerations
-   Protect your applications
-   Handle sensitive data
-   Implement proper validation
-
-CODE EXAMPLES
-
-Basic Implementation:
-[Code example showing basic usage]
-
-Advanced Pattern:
-[Code example demonstrating complex feature]
-
-COMMON MISTAKES TO AVOID
-1. Poor error handling
-   Always implement proper error checking
-   Use try-catch blocks where appropriate
-
-2. Memory management issues
-   Clean up resources properly
-   Use appropriate data structures
-
-3. Security vulnerabilities
-   Validate all inputs
-   Protect sensitive information
-
-LEARNING RESOURCES
-1. Official Documentation
-2. Community Forums
-3. Practice Platforms
-4. Tutorial Websites
-5. Code Examples
-6. Reference Books`;
 }
 
 function buildFallbackQuiz(keyword) {
@@ -420,119 +199,19 @@ function buildFallbackQuiz(keyword) {
   };
 }
 
-// Enhanced PDF generator with proper styling
+function formatSummary(keyword) {
+  return `${keyword.toUpperCase()} QUICK REFERENCE GUIDE\n\nIntroduction and key points about ${keyword}.`;
+}
+
+// PDF generator
 async function createPdfFromText(text, filename = 'cheatsheet.pdf') {
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({
-        autoFirstPage: false,
-        bufferPages: true,
-        font: 'Helvetica'
-      });
-      
+      const doc = new PDFDocument({ autoFirstPage: true });
       const buffers = [];
       doc.on('data', (chunk) => buffers.push(chunk));
-      doc.on('end', () => {
-        try {
-          const pdfBuffer = Buffer.concat(buffers);
-          resolve(pdfBuffer.toString('base64'));
-        } catch (e) {
-          reject(e);
-        }
-      });
-
-      // Add first page with title
-      doc.addPage({ size: 'A4', margin: 50 });
-      
-      // Title
-      const title = filename.replace(/_/g, ' ').replace('.pdf', '');
-      doc.font('Helvetica-Bold')
-         .fontSize(24)
-         .fillColor('#2c3e50')
-         .text(title.toUpperCase(), { align: 'center' });
-      
-      doc.moveDown(2);
-
-      // Process text content by sections
-      const sections = text.split('\n\n');
-      
-      sections.forEach((section) => {
-        // Check if we need a new page
-        if (doc.y > 700) {
-          doc.addPage({ size: 'A4', margin: 50 });
-        }
-
-        const lines = section.split('\n');
-        const title = lines[0];
-        const content = lines.slice(1);
-
-        // Section title
-        if (title.trim()) {
-          doc.font('Helvetica-Bold')
-             .fontSize(14)
-             .fillColor('#2c3e50')
-             .text(title.trim())
-             .moveDown(0.5);
-        }
-
-        // Section content
-        content.forEach(line => {
-          const trimmedLine = line.trim();
-          
-          // Code block
-          if (trimmedLine.startsWith('//') || trimmedLine.includes('function') || trimmedLine.includes('const')) {
-            doc.font('Courier')
-               .fontSize(10)
-               .fillColor('#16a085')
-               .text(trimmedLine, {
-                 width: 500,
-                 align: 'left',
-                 indent: 20
-               })
-               .moveDown(0.2);
-          }
-          // Bullet point
-          else if (trimmedLine.startsWith('•')) {
-            doc.font('Helvetica')
-               .fontSize(11)
-               .fillColor('#34495e')
-               .text(trimmedLine, {
-                 width: 500,
-                 align: 'left',
-                 indent: 10
-               })
-               .moveDown(0.2);
-          }
-          // Regular text
-          else if (trimmedLine) {
-            doc.font('Helvetica')
-               .fontSize(11)
-               .fillColor('#34495e')
-               .text(trimmedLine, {
-                 width: 500,
-                 align: 'left'
-               })
-               .moveDown(0.2);
-          }
-        });
-        
-        doc.moveDown(0.5);
-      });
-
-      // Add page numbers
-      let pages = doc.bufferedPageRange();
-      for (let i = 0; i < pages.count; i++) {
-        doc.switchToPage(i);
-        doc.fontSize(8)
-           .fillColor('#95a5a6')
-           .text(
-             `Page ${i + 1} of ${pages.count}`,
-             50,
-             doc.page.height - 50,
-             { align: 'center' }
-           );
-      }
-
+      doc.on('end', () => resolve(Buffer.concat(buffers).toString('base64')));
+      doc.fontSize(12).text(text, { align: 'left' });
       doc.end();
     } catch (e) {
       reject(e);
@@ -540,7 +219,7 @@ async function createPdfFromText(text, filename = 'cheatsheet.pdf') {
   });
 }
 
-// --- Safe JSON parser ---
+// Safe JSON parser
 function safeParseJSON(text) {
   if (!text) return null;
   try {
@@ -549,7 +228,7 @@ function safeParseJSON(text) {
     const end = cleaned.lastIndexOf('}');
     if (start === -1 || end === -1) return null;
     return JSON.parse(cleaned.slice(start, end + 1));
-  } catch (e) {
+  } catch {
     return null;
   }
 }
