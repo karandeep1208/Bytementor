@@ -154,6 +154,10 @@ GENAI-BOOTCAMP/
 └── README.md
 ```
 
+## DEPLOYMENT LINKS
+1. Backend deployment link - https://bytementor.onrender.com
+2. Frontend deployment link - https://bytementor.netlify.app/
+
 ## 🔑 API Keys Setup
 
 ### Google Gemini API Key
