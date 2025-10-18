@@ -114,15 +114,9 @@ function App() {
 
     return (
       <div className="study-guide-container">
-        <div className="study-guide-header">
-          <button 
-            className="download-btn"
-            onClick={downloadPdf}
-            disabled={!summary?.cheatSheetPdf?.data}
-          >
-            <FiDownload /> Download PDF
-          </button>
-        </div>
+      <div className="study-guide-header">
+        <h2>Study Guide</h2>
+      </div>
 
         <div className="study-guide-content">
           {summary.cheatSheet.split('\n').map((line, index) => {
@@ -402,5 +396,12 @@ function App() {
     </div>
   );
 }
+
+
+
+
+
+
+
 
 export default App;

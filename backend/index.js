@@ -31,7 +31,7 @@
     const { keyword } = req.body;
     if (!keyword || !keyword.trim()) return res.status(400).json({ error: 'Keyword is required' });
 
-    console.log(`⚙️ Generating course for keyword: ${keyword}`);
+    console.log(`Generating course for keyword: ${keyword}`);
 
     try {
       const [quiz, summary, videos, bonusTip] = await Promise.all([
